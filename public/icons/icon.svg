@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <rect x="56" y="56" width="400" height="400" rx="80" fill="#1e293b"/>
+  <text x="256" y="196" font-family="system-ui,sans-serif" font-size="96" font-weight="700" fill="#38bdf8" text-anchor="middle" dominant-baseline="middle">ERP</text>
+  <text x="256" y="300" font-family="system-ui,sans-serif" font-size="44" font-weight="600" fill="#64748b" text-anchor="middle" dominant-baseline="middle">POS</text>
+  <rect x="140" y="340" width="232" height="4" rx="2" fill="#0ea5e9" opacity="0.5"/>
+</svg>

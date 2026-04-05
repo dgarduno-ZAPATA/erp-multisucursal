@@ -1,0 +1,444 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RolUsuario {
+  admin
+  gerente
+  cajero
+  vendedor
+}
+
+enum EstadoVenta {
+  pendiente
+  completada
+  cancelada
+}
+
+enum MetodoPago {
+  efectivo
+  tarjeta
+  transferencia
+}
+
+enum EstadoFaltante {
+  pendiente
+  atendido
+}
+
+enum EstadoOrdenCompra {
+  pendiente
+  recibida
+  recibida_parcial
+  cancelada
+}
+
+enum EstadoAsistencia {
+  activa
+  cerrada
+}
+
+enum EstadoCaja {
+  abierta
+  cerrada
+}
+
+model Sucursal {
+  id         Int         @id @default(autoincrement())
+  nombre     String      @db.VarChar(120)
+  codigo     String      @unique @db.VarChar(40)
+  direccion  String?     @db.Text
+  telefono   String?     @db.VarChar(30)
+  activo            Boolean      @default(true)
+  config_impresora  Json?
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+  usuarios          Usuario[]
+  asistencias       AsistenciaVendedor[]
+  cierres_caja      CierreCaja[]
+  metas_venta       MetaVenta[]
+  inventario        Inventario[]
+  ventas            Venta[]
+  faltantes         Faltante[]
+  ordenes_compra    OrdenCompra[]
+  movimientos       MovimientoInventario[]
+
+  @@index([activo])
+  @@map("sucursales")
+}
+
+model Usuario {
+  id          String      @id @db.Uuid
+  sucursal_id Int?
+  nombre      String      @db.VarChar(120)
+  email       String      @unique @db.VarChar(160)
+  rol         RolUsuario
+  pin         String?     @db.VarChar(6)
+  activo      Boolean     @default(true)
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  sucursal    Sucursal?   @relation(fields: [sucursal_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  asistencias AsistenciaVendedor[]
+  cierres_caja CierreCaja[]
+  metas_venta  MetaVenta[]
+  ventas              Venta[]
+  faltantes           Faltante[]
+  ordenes_recibidas   OrdenCompra[]
+  movimientos         MovimientoInventario[]
+
+  @@index([sucursal_id])
+  @@index([rol])
+  @@index([activo])
+  @@map("usuarios")
+}
+
+model AsistenciaVendedor {
+  id              Int              @id @default(autoincrement())
+  usuario_id      String           @db.Uuid
+  sucursal_id     Int
+  fecha_operativa DateTime         @db.Date
+  hora_entrada    DateTime         @default(now())
+  hora_salida     DateTime?
+  estado          EstadoAsistencia @default(activa)
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+  usuario         Usuario          @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sucursal        Sucursal         @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([usuario_id, fecha_operativa])
+  @@index([sucursal_id])
+  @@index([fecha_operativa])
+  @@index([estado])
+  @@map("asistencias_vendedor")
+}
+
+model CierreCaja {
+  id                    Int         @id @default(autoincrement())
+  usuario_id            String      @db.Uuid
+  sucursal_id           Int
+  fecha_operativa       DateTime    @db.Date
+  hora_apertura         DateTime    @default(now())
+  hora_cierre           DateTime?
+  monto_inicial         Decimal     @db.Decimal(12, 2)
+  observaciones_apertura String?    @db.Text
+  ventas_efectivo       Decimal     @default(0) @db.Decimal(12, 2)
+  ventas_tarjeta        Decimal     @default(0) @db.Decimal(12, 2)
+  ventas_transferencia  Decimal     @default(0) @db.Decimal(12, 2)
+  monto_esperado        Decimal?    @db.Decimal(12, 2)
+  monto_final_declarado Decimal?    @db.Decimal(12, 2)
+  diferencia            Decimal?    @db.Decimal(12, 2)
+  observaciones_cierre  String?     @db.Text
+  estado                EstadoCaja  @default(abierta)
+  created_at            DateTime    @default(now())
+  updated_at            DateTime    @updatedAt
+  usuario               Usuario     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sucursal              Sucursal    @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([usuario_id, fecha_operativa])
+  @@index([sucursal_id])
+  @@index([fecha_operativa])
+  @@index([estado])
+  @@map("cierres_caja")
+}
+
+model MetaVenta {
+  id             Int       @id @default(autoincrement())
+  nombre         String?   @db.VarChar(160)
+  usuario_id     String?   @db.Uuid
+  sucursal_id    Int?
+  fecha_inicio   DateTime  @db.Date
+  fecha_fin      DateTime  @db.Date
+  monto_objetivo Decimal   @db.Decimal(12, 2)
+  activa         Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  usuario        Usuario?  @relation(fields: [usuario_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sucursal       Sucursal? @relation(fields: [sucursal_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([usuario_id])
+  @@index([sucursal_id])
+  @@index([fecha_inicio, fecha_fin])
+  @@index([activa])
+  @@map("metas_venta")
+}
+
+model Producto {
+  id             Int            @id @default(autoincrement())
+  sku            String         @unique @db.VarChar(80)
+  codigo_barras  String?        @unique @db.VarChar(50)
+  nombre         String         @db.VarChar(160)
+  categoria      String         @default("General") @db.VarChar(100)
+  imagenUrl      String?        @map("imagen_url")
+  descripcion    String?        @db.Text
+  precio         Decimal        @db.Decimal(12, 2)
+  costo          Decimal?       @db.Decimal(12, 2)
+  stock_minimo   Int            @default(5)
+  activo         Boolean        @default(true)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  inventario        Inventario[]
+  detalle_ventas    DetalleVenta[]
+  faltantes         Faltante[]
+  proveedor_links   ProveedorProducto[]
+  detalle_ordenes   DetalleOrdenCompra[]
+  historial_precios HistorialPrecioProveedor[]
+  movimientos       MovimientoInventario[]
+
+  @@index([codigo_barras])
+  @@index([categoria])
+  @@index([nombre])
+  @@index([activo])
+  @@map("productos")
+}
+
+model Inventario {
+  id           Int       @id @default(autoincrement())
+  producto_id  Int
+  sucursal_id  Int
+  stock_actual Int       @default(0)
+  stock_minimo Int       @default(0)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  producto     Producto  @relation(fields: [producto_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sucursal     Sucursal  @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([producto_id, sucursal_id])
+  @@index([sucursal_id])
+  @@index([producto_id])
+  @@index([stock_actual])
+  @@map("inventario")
+}
+
+model Cliente {
+  id         Int       @id @default(autoincrement())
+  nombre     String    @db.VarChar(160)
+  email      String?   @unique @db.VarChar(160)
+  telefono   String?   @db.VarChar(30)
+  direccion  String?   @db.Text
+  activo     Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  ventas     Venta[]
+
+  @@index([nombre])
+  @@index([activo])
+  @@map("clientes")
+}
+
+model Venta {
+  id            Int             @id @default(autoincrement())
+  sucursal_id   Int
+  usuario_id    String          @db.Uuid
+  cliente_id    Int?
+  folio         String          @unique @db.VarChar(50)
+  subtotal      Decimal         @db.Decimal(12, 2)
+  descuento     Decimal         @default(0) @db.Decimal(12, 2)
+  total         Decimal         @db.Decimal(12, 2)
+  metodo_pago   MetodoPago      @default(efectivo)
+  estado        EstadoVenta     @default(completada)
+  synced        Boolean         @default(true)
+  fecha_venta   DateTime        @default(now())
+  created_at    DateTime        @default(now())
+  updated_at    DateTime        @updatedAt
+  sucursal      Sucursal        @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuario       Usuario         @relation(fields: [usuario_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cliente       Cliente?        @relation(fields: [cliente_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  detalle_venta DetalleVenta[]
+
+  @@index([sucursal_id])
+  @@index([usuario_id])
+  @@index([cliente_id])
+  @@index([estado])
+  @@index([fecha_venta])
+  @@map("ventas")
+}
+
+model DetalleVenta {
+  id             Int       @id @default(autoincrement())
+  venta_id       Int
+  producto_id    Int
+  cantidad       Int
+  precio_unitario Decimal  @db.Decimal(12, 2)
+  subtotal       Decimal   @db.Decimal(12, 2)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  venta          Venta     @relation(fields: [venta_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto       Producto  @relation(fields: [producto_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([venta_id, producto_id])
+  @@index([producto_id])
+  @@map("detalle_ventas")
+}
+
+model Faltante {
+  id                Int             @id @default(autoincrement())
+  producto_id       Int
+  sucursal_id       Int
+  usuario_id        String?         @db.Uuid
+  cantidad_faltante Int
+  motivo            String?         @db.Text
+  estado            EstadoFaltante  @default(pendiente)
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  producto          Producto        @relation(fields: [producto_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sucursal          Sucursal        @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuario           Usuario?        @relation(fields: [usuario_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([producto_id])
+  @@index([sucursal_id])
+  @@index([usuario_id])
+  @@index([estado])
+  @@map("faltantes")
+}
+
+model Proveedor {
+  id                  Int       @id @default(autoincrement())
+  nombre              String    @db.VarChar(160)
+  contacto            String?   @db.VarChar(120)
+  telefono            String?   @db.VarChar(30)
+  email               String?   @db.VarChar(160)
+  direccion           String?   @db.Text
+  dias_credito        Int       @default(0)
+  frecuencia_visita   Int?
+  proxima_visita      DateTime? @db.Date
+  monto_minimo_pedido Decimal?  @db.Decimal(12, 2)
+  notas               String?   @db.Text
+  activo              Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  productos         ProveedorProducto[]
+  ordenes_compra    OrdenCompra[]
+  historial_precios HistorialPrecioProveedor[]
+
+  @@index([activo])
+  @@map("proveedores")
+}
+
+model ProveedorProducto {
+  id           Int      @id @default(autoincrement())
+  proveedor_id Int
+  producto_id  Int
+  precio_costo Decimal? @db.Decimal(12, 2)
+  es_principal Boolean  @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  proveedor Proveedor @relation(fields: [proveedor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto  Producto  @relation(fields: [producto_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([proveedor_id, producto_id])
+  @@index([producto_id])
+  @@map("proveedor_productos")
+}
+
+model OrdenCompra {
+  id                Int               @id @default(autoincrement())
+  proveedor_id      Int
+  sucursal_id       Int
+  recibido_por      String?           @db.Uuid
+  folio             String            @unique @db.VarChar(60)
+  fecha_esperada    DateTime?         @db.Date
+  fecha_recibida    DateTime?         @db.Date
+  fecha_vencimiento DateTime?         @db.Date
+  estado            EstadoOrdenCompra @default(pendiente)
+  total             Decimal           @db.Decimal(12, 2)
+  monto_pagado      Decimal           @default(0) @db.Decimal(12, 2)
+  factura_url       String?           @db.Text
+  notas             String?           @db.Text
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
+
+  proveedor Proveedor                  @relation(fields: [proveedor_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sucursal  Sucursal                   @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  receptor  Usuario?                   @relation(fields: [recibido_por], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  detalle   DetalleOrdenCompra[]
+  pagos     PagoProveedor[]
+  historial HistorialPrecioProveedor[]
+
+  @@index([proveedor_id])
+  @@index([sucursal_id])
+  @@index([estado])
+  @@index([fecha_esperada])
+  @@index([fecha_vencimiento])
+  @@map("ordenes_compra")
+}
+
+model DetalleOrdenCompra {
+  id                Int      @id @default(autoincrement())
+  orden_id          Int
+  producto_id       Int
+  cantidad_pedida   Int
+  cantidad_recibida Int      @default(0)
+  precio_unitario   Decimal  @db.Decimal(12, 2)
+  subtotal          Decimal  @db.Decimal(12, 2)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  orden    OrdenCompra @relation(fields: [orden_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto Producto    @relation(fields: [producto_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([orden_id])
+  @@index([producto_id])
+  @@map("detalle_ordenes_compra")
+}
+
+model PagoProveedor {
+  id          Int        @id @default(autoincrement())
+  orden_id    Int
+  monto       Decimal    @db.Decimal(12, 2)
+  metodo_pago MetodoPago @default(efectivo)
+  fecha_pago  DateTime   @default(now())
+  notas       String?    @db.Text
+  created_at  DateTime   @default(now())
+
+  orden OrdenCompra @relation(fields: [orden_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([orden_id])
+  @@map("pagos_proveedor")
+}
+
+model HistorialPrecioProveedor {
+  id              Int      @id @default(autoincrement())
+  proveedor_id    Int
+  producto_id     Int
+  orden_id        Int?
+  precio_anterior Decimal  @db.Decimal(12, 2)
+  precio_nuevo    Decimal  @db.Decimal(12, 2)
+  created_at      DateTime @default(now())
+
+  proveedor Proveedor    @relation(fields: [proveedor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  producto  Producto     @relation(fields: [producto_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orden     OrdenCompra? @relation(fields: [orden_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([proveedor_id, producto_id])
+  @@index([orden_id])
+  @@map("historial_precios_proveedor")
+}
+
+model MovimientoInventario {
+  id             Int      @id @default(autoincrement())
+  producto_id    Int
+  sucursal_id    Int
+  usuario_id     String?  @db.Uuid
+  tipo           String   @db.VarChar(20)
+  cantidad       Int
+  stock_anterior Int
+  stock_nuevo    Int
+  motivo         String?  @db.Text
+  referencia     String?  @db.VarChar(120)
+  created_at     DateTime @default(now())
+
+  producto Producto @relation(fields: [producto_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sucursal Sucursal @relation(fields: [sucursal_id], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuario  Usuario? @relation(fields: [usuario_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([producto_id, created_at(sort: Desc)])
+  @@index([sucursal_id, created_at(sort: Desc)])
+  @@index([usuario_id, created_at(sort: Desc)])
+  @@map("movimientos_inventario")
+}
