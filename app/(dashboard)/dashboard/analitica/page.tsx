@@ -183,6 +183,53 @@ function ComparisonBars({
   );
 }
 
+function AnalyticsLoadError({
+  title,
+  message,
+}: {
+  title: string;
+  message: string;
+}) {
+  return (
+    <section
+      className="rounded-2xl p-6"
+      style={{ background: "rgba(248,113,113,0.07)", border: "1px solid rgba(248,113,113,0.16)" }}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.26em]" style={{ color: "#f87171" }}>
+        Analitica no disponible
+      </p>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight" style={{ color: "#fafaf9" }}>
+        {title}
+      </h1>
+      <p className="mt-2 text-sm leading-6" style={{ color: "#fecaca" }}>
+        Esta vista no se pudo construir completa en el sandbox. El resto de la aplicacion puede seguir operando.
+      </p>
+      <pre
+        className="mt-4 overflow-x-auto rounded-2xl p-4 text-xs"
+        style={{ background: "rgba(12,12,14,0.92)", color: "#fecdd3" }}
+      >
+        {message}
+      </pre>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href="/dashboard"
+          className="inline-flex items-center rounded-xl px-4 py-2.5 text-sm font-bold"
+          style={{ background: "#f59e0b", color: "#0c0c0e" }}
+        >
+          Ir a dashboard
+        </a>
+        <a
+          href="/dashboard/analitica"
+          className="inline-flex items-center rounded-xl px-4 py-2.5 text-sm font-semibold"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#a1a1aa" }}
+        >
+          Reintentar sin filtros
+        </a>
+      </div>
+    </section>
+  );
+}
+
 /* ───── main page ───── */
 export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps) {
   await require_roles(["admin", "gerente"]);
@@ -201,7 +248,28 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     vendedor_id:  searchParams?.vendedor_id || undefined,
   };
 
-  const [metrics, goals] = await Promise.all([getDashboardMetrics(filters), getSalesGoalsSummary(filters)]);
+  let metrics: Awaited<ReturnType<typeof getDashboardMetrics>>;
+  let goals: Awaited<ReturnType<typeof getSalesGoalsSummary>>;
+
+  try {
+    [metrics, goals] = await Promise.all([getDashboardMetrics(filters), getSalesGoalsSummary(filters)]);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.stack ?? error.message
+        : "No se pudo resolver la consulta analitica.";
+
+    console.error("Analytics page failed to load", error);
+
+    return (
+      <div className="space-y-5">
+        <AnalyticsLoadError
+          title="La analitica gerencial fallo al cargar"
+          message={message}
+        />
+      </div>
+    );
+  }
 
   const { filtros, catalogos, resumen } = metrics;
   const today = new Date();
