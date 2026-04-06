@@ -40,6 +40,32 @@ type AttendanceRecord = {
   };
 };
 
+type AttendanceReportRow = {
+  id: number;
+  fecha_operativa: string;
+  hora_entrada: string;
+  hora_salida: string | null;
+  estado: string;
+  usuario_id: string;
+  usuario_nombre: string;
+  usuario_rol: AttendanceUserRole;
+  sucursal_id: number;
+  sucursal_nombre: string;
+  horas_trabajadas: number;
+  minutos_retardo: number;
+  llego_tarde: boolean;
+};
+
+type AttendanceSummary = {
+  usuario_id: string;
+  nombre: string;
+  rol: "cajero" | "vendedor";
+  sucursal: string;
+  asistencias: number;
+  horas: number;
+  retardos: number;
+};
+
 function get_operating_day(date = new Date()) {
   const operating_day = new Date(date);
   operating_day.setHours(0, 0, 0, 0);
@@ -78,7 +104,7 @@ export async function getAttendanceReport(filters: {
             select: { id: true, nombre: true, codigo: true },
           })
         : [];
-  const branch_ids = sucursales.map((branch) => branch.id);
+  const branch_ids = sucursales.map((branch: AttendanceBranchOption) => branch.id);
   const selected_branch_id =
     filters.sucursal_id && branch_ids.includes(filters.sucursal_id) ? filters.sucursal_id : undefined;
   const fecha_desde = parse_day(filters.fecha_desde, get_operating_day(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)));
@@ -103,7 +129,7 @@ export async function getAttendanceReport(filters: {
   });
 
   const selected_operator_id =
-    filters.vendedor_id && operadores.some((operador) => operador.id === filters.vendedor_id)
+    filters.vendedor_id && operadores.some((operador: AttendanceOperatorOption) => operador.id === filters.vendedor_id)
       ? filters.vendedor_id
       : undefined;
 
@@ -140,7 +166,7 @@ export async function getAttendanceReport(filters: {
     },
   });
 
-  const attendance_rows = rows.map((row) => {
+  const attendance_rows: AttendanceReportRow[] = rows.map((row: AttendanceRecord) => {
     const expected = new Date(row.fecha_operativa);
     expected.setHours(expected_hour, expected_minute, 0, 0);
     const salida = row.hora_salida ?? row.hora_entrada;
@@ -163,15 +189,7 @@ export async function getAttendanceReport(filters: {
     };
   });
 
-  const summary_map = new Map<string, {
-    usuario_id: string;
-    nombre: string;
-    rol: "cajero" | "vendedor";
-    sucursal: string;
-    asistencias: number;
-    horas: number;
-    retardos: number;
-  }>();
+  const summary_map = new Map<string, AttendanceSummary>();
 
   for (const row of attendance_rows) {
     const current = summary_map.get(row.usuario_id) ?? {
@@ -198,7 +216,7 @@ export async function getAttendanceReport(filters: {
     },
     catalogos: {
       sucursales,
-      operadores: operadores.map((operador) => ({
+      operadores: operadores.map((operador: AttendanceOperatorOption) => ({
         id: operador.id,
         nombre: operador.nombre,
         rol: operador.rol,
@@ -206,11 +224,11 @@ export async function getAttendanceReport(filters: {
       })),
     },
     resumen: Array.from(summary_map.values())
-      .map((item) => ({
+      .map((item: AttendanceSummary) => ({
         ...item,
         horas: Number(item.horas.toFixed(2)),
       }))
-      .sort((a, b) => b.horas - a.horas),
+      .sort((a: AttendanceSummary, b: AttendanceSummary) => b.horas - a.horas),
     rows: attendance_rows,
     reglas: {
       hora_esperada: "09:00",
@@ -234,8 +252,9 @@ export async function registrarEntradaSucursal(sucursal_id: number) {
     return { success: false as const, error: "Sucursal invalida." };
   }
 
-  const { sucursales } = await get_shift_assignable_sucursales();
-  const sucursal = sucursales.find((item) => item.id === sucursal_id);
+  const shift_assignable = await get_shift_assignable_sucursales();
+  const sucursales: AttendanceBranchOption[] = shift_assignable.sucursales;
+  const sucursal = sucursales.find((item: AttendanceBranchOption) => item.id === sucursal_id);
 
   if (!sucursal) {
     return { success: false as const, error: "La sucursal seleccionada no esta disponible." };
