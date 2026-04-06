@@ -1,4 +1,5 @@
 import type { RolUsuario } from "@prisma/client";
+import { redirect } from "next/navigation";
 
 import { get_current_db_user } from "@/lib/auth/operating-context";
 import { can_access } from "@/lib/auth/route-permissions";
@@ -6,11 +7,22 @@ import { can_access } from "@/lib/auth/route-permissions";
 export type { RolUsuario };
 export { can_access };
 
+function get_role_fallback(rol: RolUsuario | null | undefined) {
+  return rol === "vendedor" || rol === "cajero" ? "/pos" : "/dashboard";
+}
+
 export async function require_roles(allowed: RolUsuario[]) {
   const db_user = await get_current_db_user();
-  if (!db_user || !allowed.includes(db_user.rol)) {
-    throw new Error("Sin permisos suficientes para esta operacion.");
+
+  if (!db_user) {
+    redirect("/login?error=Tu%20sesion%20no%20tiene%20usuario%20operativo%20asignado.");
   }
+
+  if (!allowed.includes(db_user.rol)) {
+    const fallback = get_role_fallback(db_user.rol);
+    redirect(`${fallback}?error=Sin%20permisos%20para%20esta%20seccion.`);
+  }
+
   return db_user;
 }
 
