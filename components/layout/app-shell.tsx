@@ -19,6 +19,7 @@ type AppShellProps = {
   user_name: string;
   user_rol?: string;
   navigation: NavigationItem[];
+  sidebar_footer_note?: string;
 };
 
 export function AppShell({
@@ -31,6 +32,7 @@ export function AppShell({
   user_name,
   user_rol,
   navigation,
+  sidebar_footer_note,
 }: AppShellProps) {
   return (
     <div
@@ -42,6 +44,7 @@ export function AppShell({
           items={navigation}
           title={sidebar_title}
           subtitle={sidebar_subtitle}
+          footer_note={sidebar_footer_note}
         />
         <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
           <Topbar

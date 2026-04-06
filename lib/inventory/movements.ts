@@ -74,3 +74,23 @@ export async function get_inventory_movements(params?: {
     usuario_nombre: row.usuario?.nombre ?? null,
   }));
 }
+
+export async function get_inventory_movements_safe(params?: {
+  sucursal_ids?: number[];
+  producto_id?: number;
+  limit?: number;
+}) {
+  try {
+    const movimientos = await get_inventory_movements(params);
+    return {
+      movimientos,
+      available: true as const,
+    };
+  } catch (error) {
+    console.error("Inventory movements unavailable in current environment", error);
+    return {
+      movimientos: [],
+      available: false as const,
+    };
+  }
+}
