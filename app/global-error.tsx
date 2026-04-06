@@ -6,6 +6,8 @@ type GlobalErrorProps = {
 };
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
+  const detail = error.digest ? `${error.message}\nDigest: ${error.digest}` : error.message;
+
   return (
     <html lang="es">
       <body className="bg-slate-100 text-slate-950">
@@ -21,7 +23,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               Next detecto un error en tiempo de ejecucion. Intenta recargar para reconstruir la vista.
             </p>
             <pre className="mt-5 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs text-rose-200">
-              {error.message}
+              {detail}
             </pre>
             <button
               type="button"
@@ -30,6 +32,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             >
               Recargar aplicacion
             </button>
+            {error.digest ? (
+              <p className="mt-3 text-xs text-slate-500">
+                Digest de referencia: <span className="font-semibold text-slate-700">{error.digest}</span>
+              </p>
+            ) : null}
           </div>
         </div>
       </body>

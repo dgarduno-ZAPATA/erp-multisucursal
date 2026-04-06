@@ -27,6 +27,14 @@ export const metadata: Metadata = {
       ? "Sandbox interno del ERP/CRM Multi-Sucursal para validacion operativa."
       : "MVP ERP/CRM Multi-Sucursal",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/icon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" }],
+    shortcut: ["/icons/icon-96x96.png"],
+  },
   robots: {
     index: is_production_environment,
     follow: is_production_environment,
