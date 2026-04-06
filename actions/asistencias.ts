@@ -6,6 +6,12 @@ import { prisma } from "@/lib/db/prisma";
 import { get_current_db_user, get_shift_assignable_sucursales } from "@/lib/auth/operating-context";
 import { require_roles } from "@/lib/auth/rbac";
 
+type AttendanceBranchOption = {
+  id: number;
+  nombre: string;
+  codigo: string;
+};
+
 function get_operating_day(date = new Date()) {
   const operating_day = new Date(date);
   operating_day.setHours(0, 0, 0, 0);
@@ -31,18 +37,19 @@ export async function getAttendanceReport(filters: {
   vendedor_id?: string;
 } = {}) {
   const db_user = await require_roles(["admin", "gerente"]);
-  const sucursales = db_user.rol === "admin"
-    ? await prisma.sucursal.findMany({
-        where: { activo: true },
-        orderBy: { nombre: "asc" },
-        select: { id: true, nombre: true, codigo: true },
-      })
-    : db_user.sucursal_id
+  const sucursales: AttendanceBranchOption[] =
+    db_user.rol === "admin"
       ? await prisma.sucursal.findMany({
-          where: { id: db_user.sucursal_id, activo: true },
+          where: { activo: true },
+          orderBy: { nombre: "asc" },
           select: { id: true, nombre: true, codigo: true },
         })
-      : [];
+      : db_user.sucursal_id
+        ? await prisma.sucursal.findMany({
+            where: { id: db_user.sucursal_id, activo: true },
+            select: { id: true, nombre: true, codigo: true },
+          })
+        : [];
   const branch_ids = sucursales.map((branch) => branch.id);
   const selected_branch_id =
     filters.sucursal_id && branch_ids.includes(filters.sucursal_id) ? filters.sucursal_id : undefined;
