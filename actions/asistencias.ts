@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { RolUsuario } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { get_current_db_user, get_shift_assignable_sucursales } from "@/lib/auth/operating-context";
@@ -10,6 +11,32 @@ type AttendanceBranchOption = {
   id: number;
   nombre: string;
   codigo: string;
+};
+
+type AttendanceOperatorOption = {
+  id: string;
+  nombre: string;
+  rol: RolUsuario;
+  sucursal: {
+    nombre: string;
+  } | null;
+};
+
+type AttendanceRecord = {
+  id: number;
+  fecha_operativa: Date;
+  hora_entrada: Date;
+  hora_salida: Date | null;
+  estado: string;
+  usuario: {
+    id: string;
+    nombre: string;
+    rol: RolUsuario;
+  };
+  sucursal: {
+    id: number;
+    nombre: string;
+  };
 };
 
 function get_operating_day(date = new Date()) {
@@ -59,7 +86,7 @@ export async function getAttendanceReport(filters: {
   const expected_hour = 9;
   const expected_minute = 0;
 
-  const operadores = await prisma.usuario.findMany({
+  const operadores: AttendanceOperatorOption[] = await prisma.usuario.findMany({
     where: {
       activo: true,
       rol: { in: ["cajero", "vendedor"] },
@@ -79,7 +106,7 @@ export async function getAttendanceReport(filters: {
       ? filters.vendedor_id
       : undefined;
 
-  const rows = await prisma.asistenciaVendedor.findMany({
+  const rows: AttendanceRecord[] = await prisma.asistenciaVendedor.findMany({
     where: {
       ...(selected_branch_id
         ? { sucursal_id: selected_branch_id }
