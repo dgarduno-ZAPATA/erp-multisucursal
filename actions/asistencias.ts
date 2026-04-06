@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { RolUsuario } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { get_current_db_user, get_shift_assignable_sucursales } from "@/lib/auth/operating-context";
 import { require_roles } from "@/lib/auth/rbac";
+
+type AttendanceUserRole = "admin" | "gerente" | "vendedor" | "cajero";
 
 type AttendanceBranchOption = {
   id: number;
@@ -16,7 +17,7 @@ type AttendanceBranchOption = {
 type AttendanceOperatorOption = {
   id: string;
   nombre: string;
-  rol: RolUsuario;
+  rol: AttendanceUserRole;
   sucursal: {
     nombre: string;
   } | null;
@@ -31,7 +32,7 @@ type AttendanceRecord = {
   usuario: {
     id: string;
     nombre: string;
-    rol: RolUsuario;
+    rol: AttendanceUserRole;
   };
   sucursal: {
     id: number;
