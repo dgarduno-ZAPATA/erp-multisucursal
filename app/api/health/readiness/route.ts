@@ -6,6 +6,8 @@ import {
   pwa_enabled,
 } from "@/lib/config/app-env";
 
+export const dynamic = "force-dynamic";
+
 type CheckStatus = "pass" | "warn" | "fail";
 
 type ReadinessCheck = {

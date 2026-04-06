@@ -6,6 +6,8 @@ import {
   sandbox_label,
 } from "@/lib/config/app-env";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const started_at = Date.now();
 
